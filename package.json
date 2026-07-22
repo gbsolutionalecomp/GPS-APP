@@ -3,9 +3,17 @@
   "version": "1.0.0",
   "private": true,
   "description": "Control institucional de viajes, paradas GPS y evidencias de odometro para GBSolution.",
-  "packageManager": "pnpm@11.9.0",
+  "packageManager": "pnpm@10.15.0",
   "engines": {
     "node": "24.x"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "supabase",
+      "unrs-resolver"
+    ]
   },
   "scripts": {
     "dev": "next dev",
