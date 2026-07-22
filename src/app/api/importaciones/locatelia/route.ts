@@ -45,22 +45,53 @@ export async function POST(request: Request) {
     const records = await parseLocateliaFile(file)
     const directory = { vehicles: [...snapshot.vehicles] }
     const normalized = await new DefaultLocateliaAdapter().normalize(records, directory)
-    let inserted = 0; let updated = 0
+    let inserted = normalized.journeys.length
+    let updated = 0
     if (getDataMode() === 'supabase') {
       const supabase = await getSupabaseServerClient()
-      for (const vehicle of directory.vehicles) {
-        await supabase.from('vehicles').upsert({
-          id: vehicle.id,
-          plate: vehicle.plate,
-          name: vehicle.name,
-          locatelia_device_id: vehicle.locateliaDeviceId,
+      if (directory.vehicles.length) {
+        const vehicleRows = directory.vehicles.map((v) => ({
+          id: v.id,
+          plate: v.plate,
+          name: v.name,
+          locatelia_device_id: v.locateliaDeviceId,
           active: true,
-        }, { onConflict: 'id' })
+        }))
+        const { error: vErr } = await supabase.from('vehicles').upsert(vehicleRows, { onConflict: 'id' })
+        if (vErr) console.warn('Vehicle batch upsert warning:', vErr.message)
       }
-      for (const journey of normalized.journeys) {
-        const result = await persistJourney(journey, normalized.stops.filter((stop) => stop.journeyId === journey.id))
-        if (result === 'inserted') inserted += 1; else updated += 1
+
+      if (normalized.journeys.length) {
+        const journeyRows = normalized.journeys.map((j) => ({
+          id: j.id,
+          external_id: j.externalId,
+          fingerprint: j.fingerprint,
+          source: j.source,
+          vehicle_id: j.vehicleId,
+          actual_start: j.actualStart,
+          actual_end: j.actualEnd,
+          origin: j.origin,
+          destination: j.destination,
+          gps_distance_km: j.gpsDistanceKm,
+          source_updated_at: j.sourceUpdatedAt,
+        }))
+        const { error: jErr } = await supabase.from('journeys').upsert(journeyRows, { onConflict: 'id' })
+        if (jErr) throw jErr
       }
+
+      if (normalized.stops.length) {
+        const stopRows = normalized.stops.map((stop) => ({
+          journey_id: stop.journeyId,
+          sequence: stop.sequence,
+          arrived_at: stop.arrivedAt,
+          departed_at: stop.departedAt,
+          location: stop.location,
+          duration_minutes: stop.durationMinutes,
+        }))
+        const { error: sErr } = await supabase.from('journey_stops').upsert(stopRows, { onConflict: 'journey_id,sequence' })
+        if (sErr) console.warn('Stops batch upsert warning:', sErr.message)
+      }
+
       try {
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(authorization.userId)
         let userId = isUuid ? authorization.userId : undefined
