@@ -8,6 +8,7 @@ coverage/
 *.tsbuildinfo
 .vercel/
 .supabase/
+supabase/.temp/
 .claude/
 
 # Exportaciones crudas de la plataforma GPS: contienen ubicaciones reales de la flotilla.

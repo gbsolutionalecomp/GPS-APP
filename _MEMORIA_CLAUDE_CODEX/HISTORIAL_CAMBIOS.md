@@ -95,3 +95,11 @@
 - Es un cambio menor pero real al proyecto (no a config local de este entorno). Verificado con `pnpm build` (ya se había corrido limpio en el bloque anterior, antes de este cambio) — pendiente: re-correr `pnpm build`/`pnpm test` una vez más tras este cambio puntual si CODEX quiere doble confirmación, aunque el cambio sólo afecta la inferencia de raíz de Turbopack, no lógica de la app.
 - No relacionado con la app en sí: se creó `.claude/launch.json` en la raíz del repositorio (`MAPEO DE PROCESOS GBS SOLUTIONS/.claude/launch.json`, fuera de `GPS PROYECTOS`) para que el mecanismo de previsualización de Claude Code pueda levantar `next dev` apuntando a `GPS PROYECTOS`. Es tooling de este asistente, no parte del producto.
 
+**[Codex] [22/07/2026 - 16:40] - Conexión de APP-GPS y preparación final de producción**
+- Se vinculó el repositorio con el proyecto Supabase `APP-GPS` (`ogjqknwmjppexmpvcgcv`) y se actualizó `supabase/config.toml`; `.env.example` quedó neutral, sin referencias ni credenciales del proyecto anterior.
+- Se corrigió el historial SQL para instalaciones limpias: `20260721000100_gps_foundation.sql` quedó como marcador porque el esquema completo e idempotente ya se crea en `20260721000050_bootstrap_schema.sql`.
+- Se agregó `20260722000200_harden_function_privileges.sql`, revocando a `public`/`anon` la ejecución de funciones `security definer` y reservando las funciones de autorización para `authenticated`.
+- Las 15 migraciones se aplicaron correctamente al Supabase enlazado; `supabase db lint --linked --level warning --fail-on error` terminó sin errores de esquema.
+- Se configuraron en Vercel, para Production y Preview, las variables de conexión pública y de servidor; las credenciales no se versionaron.
+- Se eliminó la configuración duplicada `pnpm.onlyBuiltDependencies` de `package.json`; permanece en `pnpm-workspace.yaml`, que es la ubicación vigente para pnpm.
+- Validación local posterior: `pnpm lint`, `pnpm typecheck`, `pnpm test` (13/13) y `pnpm build` finalizaron correctamente.

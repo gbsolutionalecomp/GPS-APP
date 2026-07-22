@@ -1,0 +1,22 @@
+-- Agrega valores faltantes a enums existentes antes del bootstrap del esquema.
+do $$ begin create type public.user_role as enum ('admin', 'engineer'); exception when duplicate_object then null; end $$;
+do $$ begin create type public.journey_source as enum ('planned', 'locatelia_api', 'locatelia_webhook', 'locatelia_import'); exception when duplicate_object then null; end $$;
+do $$ begin create type public.integration_mode as enum ('disabled', 'api', 'webhook', 'import'); exception when duplicate_object then null; end $$;
+do $$ begin create type public.sync_status as enum ('success', 'warning', 'error', 'running'); exception when duplicate_object then null; end $$;
+do $$ begin create type public.evidence_kind as enum ('before', 'after'); exception when duplicate_object then null; end $$;
+do $$ begin alter type public.user_role add value if not exists 'admin'; exception when duplicate_object then null; end $$;
+do $$ begin alter type public.user_role add value if not exists 'engineer'; exception when duplicate_object then null; end $$;
+do $$ begin alter type public.journey_source add value if not exists 'planned'; exception when duplicate_object then null; end $$;
+do $$ begin alter type public.journey_source add value if not exists 'locatelia_api'; exception when duplicate_object then null; end $$;
+do $$ begin alter type public.journey_source add value if not exists 'locatelia_webhook'; exception when duplicate_object then null; end $$;
+do $$ begin alter type public.journey_source add value if not exists 'locatelia_import'; exception when duplicate_object then null; end $$;
+do $$ begin alter type public.integration_mode add value if not exists 'disabled'; exception when duplicate_object then null; end $$;
+do $$ begin alter type public.integration_mode add value if not exists 'api'; exception when duplicate_object then null; end $$;
+do $$ begin alter type public.integration_mode add value if not exists 'webhook'; exception when duplicate_object then null; end $$;
+do $$ begin alter type public.integration_mode add value if not exists 'import'; exception when duplicate_object then null; end $$;
+do $$ begin alter type public.sync_status add value if not exists 'success'; exception when duplicate_object then null; end $$;
+do $$ begin alter type public.sync_status add value if not exists 'warning'; exception when duplicate_object then null; end $$;
+do $$ begin alter type public.sync_status add value if not exists 'error'; exception when duplicate_object then null; end $$;
+do $$ begin alter type public.sync_status add value if not exists 'running'; exception when duplicate_object then null; end $$;
+do $$ begin alter type public.evidence_kind add value if not exists 'before'; exception when duplicate_object then null; end $$;
+do $$ begin alter type public.evidence_kind add value if not exists 'after'; exception when duplicate_object then null; end $$;
