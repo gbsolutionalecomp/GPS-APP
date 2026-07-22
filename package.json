@@ -1,0 +1,49 @@
+{
+  "name": "gbs-control-viajes-gps",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Control institucional de viajes, paradas GPS y evidencias de odometro para GBSolution.",
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --configLoader runner",
+    "test:watch": "vitest --configLoader runner",
+    "test:e2e": "playwright test",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+  },
+  "dependencies": {
+    "@supabase/ssr": "0.12.3",
+    "@supabase/supabase-js": "2.110.7",
+    "exceljs": "4.4.0",
+    "next": "16.2.10",
+    "papaparse": "5.4.1",
+    "pdf-lib": "1.17.1",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.55.0",
+    "@testing-library/dom": "10.4.1",
+    "@testing-library/jest-dom": "6.6.3",
+    "@testing-library/react": "16.3.0",
+    "@types/node": "24.0.0",
+    "@types/papaparse": "5.3.14",
+    "@types/react": "19.2.0",
+    "@types/react-dom": "19.2.0",
+    "@vitejs/plugin-react": "5.0.0",
+    "eslint": "9.0.0",
+    "eslint-config-next": "16.2.10",
+    "jsdom": "26.0.0",
+    "supabase": "2.109.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  }
+}

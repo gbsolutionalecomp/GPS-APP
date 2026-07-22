@@ -1,0 +1,7 @@
+project_id = "gbs-control-viajes-gps"
+
+[functions.locatelia-webhook]
+verify_jwt = false
+
+[functions.locatelia-sync]
+verify_jwt = false
