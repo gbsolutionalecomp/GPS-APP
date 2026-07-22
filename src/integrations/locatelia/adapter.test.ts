@@ -13,9 +13,10 @@ describe('adaptador Locatelia', () => {
     expect(result.stops[0]).toMatchObject({ location: 'Torre', durationMinutes: 20 })
   })
 
-  it('rechaza una unidad que no pertenece al catálogo', async () => {
-    const result = await new DefaultLocateliaAdapter().normalize([{ Placa: 'ZZZ-999', Inicio: '18/07/2026 08:06' }], { vehicles: demoSnapshot.vehicles })
-    expect(result.journeys).toHaveLength(0)
-    expect(result.errors[0]).toContain('vehículo conocido')
+  it('da de alta automáticamente una unidad que no pertenece al catálogo', async () => {
+    const vehicles = [{ id: 'v1', plate: 'RTP-482-A', name: 'NP300', active: true }]
+    const result = await new DefaultLocateliaAdapter().normalize([{ Placa: 'ZZZ-999', Inicio: '18/07/2026 08:06' }], { vehicles })
+    expect(result.journeys).toHaveLength(1)
+    expect(result.warnings.some((w) => w.includes('ZZZ-999'))).toBe(true)
   })
 })

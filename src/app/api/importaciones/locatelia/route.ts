@@ -43,14 +43,24 @@ export async function POST(request: Request) {
     if (!(file instanceof File) || !file.size) return NextResponse.json({ error: 'Selecciona un archivo.' }, { status: 400 })
     const snapshot = await getAppSnapshot()
     const records = await parseLocateliaFile(file)
-    const normalized = await new DefaultLocateliaAdapter().normalize(records, { vehicles: snapshot.vehicles })
+    const directory = { vehicles: [...snapshot.vehicles] }
+    const normalized = await new DefaultLocateliaAdapter().normalize(records, directory)
     let inserted = 0; let updated = 0
     if (getDataMode() === 'supabase') {
+      const supabase = await getSupabaseServerClient()
+      for (const vehicle of directory.vehicles) {
+        await supabase.from('vehicles').upsert({
+          id: vehicle.id,
+          plate: vehicle.plate,
+          name: vehicle.name,
+          locatelia_device_id: vehicle.locateliaDeviceId,
+          active: true,
+        }, { onConflict: 'id' })
+      }
       for (const journey of normalized.journeys) {
         const result = await persistJourney(journey, normalized.stops.filter((stop) => stop.journeyId === journey.id))
         if (result === 'inserted') inserted += 1; else updated += 1
       }
-      const supabase = await getSupabaseServerClient()
       await supabase.from('import_batches').insert({ provider: 'locatelia', file_name: file.name, row_count: records.length, accepted_count: normalized.journeys.length, rejected_count: normalized.errors.length, imported_by: authorization.userId })
     }
     return NextResponse.json({ fileName: file.name, acceptedRows: normalized.journeys.length, rejectedRows: normalized.errors.length, warnings: normalized.warnings, errors: normalized.errors.slice(0, 100), journeys: normalized.journeys, stops: normalized.stops, inserted, updated, committed: getDataMode() === 'supabase' })

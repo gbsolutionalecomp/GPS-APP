@@ -1,7 +1,7 @@
 import type { Journey, JourneyStop, Vehicle } from '@/domain/types'
 
 export interface LocateliaDirectory {
-  vehicles: readonly Vehicle[]
+  vehicles: Vehicle[]
 }
 
 export interface NormalizedLocateliaBatch {

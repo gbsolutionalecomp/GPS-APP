@@ -31,15 +31,28 @@ function parseDistance(raw: string): number | undefined {
   return Number.isFinite(value) && value >= 0 ? Math.round(value * 10) / 10 : undefined
 }
 
-function parseDate(raw: string): string | undefined {
+function parseDate(raw: unknown): string | undefined {
   if (!raw) return undefined
-  const latin = raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/)
+  if (raw instanceof Date) return raw.toISOString()
+  if (typeof raw === 'number') {
+    const date = new Date(Math.round((raw - (25567 + 2)) * 86400 * 1000))
+    return Number.isNaN(date.getTime()) ? undefined : date.toISOString()
+  }
+  const str = String(raw).trim()
+  if (!str) return undefined
+  const latin = str.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/)
   if (latin) {
     const local = `${latin[3]}-${latin[2]?.padStart(2, '0')}-${latin[1]?.padStart(2, '0')}T${(latin[4] ?? '00').padStart(2, '0')}:${latin[5] ?? '00'}:${latin[6] ?? '00'}-06:00`
     const parsed = new Date(local)
     return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString()
   }
-  const parsed = new Date(raw)
+  const iso = str.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/)
+  if (iso) {
+    const local = `${iso[1]}-${iso[2]?.padStart(2, '0')}-${iso[3]?.padStart(2, '0')}T${(iso[4] ?? '00').padStart(2, '0')}:${iso[5] ?? '00'}:${iso[6] ?? '00'}-06:00`
+    const parsed = new Date(local)
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString()
+  }
+  const parsed = new Date(str)
   return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString()
 }
 
@@ -64,13 +77,34 @@ export class DefaultLocateliaAdapter implements LocateliaAdapter {
     const warnings: string[] = []
     const errors: string[] = []
     records.forEach((row, index) => {
-      const plate = field(row, 'plate').toUpperCase().replace(/\s/g, '')
+      let rawPlate = field(row, 'plate') || String(row.vehicle ?? '').trim()
       const deviceId = field(row, 'deviceId')
-      const vehicle = directory.vehicles.find((item) => item.plate.toUpperCase().replace(/\s/g, '') === plate || (deviceId && item.locateliaDeviceId === deviceId))
-      const actualStart = parseDate(field(row, 'actualStart'))
+      if (!rawPlate && !deviceId) {
+        rawPlate = directory.vehicles[0]?.plate || 'UNIDAD-01'
+      }
+      const plate = rawPlate.toUpperCase().replace(/\s/g, '')
+
+      let vehicle = directory.vehicles.find(
+        (item) => item.plate.toUpperCase().replace(/\s/g, '') === plate || (deviceId && item.locateliaDeviceId === deviceId)
+      )
+
+      if (!vehicle) {
+        vehicle = {
+          id: randomUUID(),
+          plate: plate || 'UNIDAD-01',
+          name: `Unidad ${plate || '01'}`,
+          locateliaDeviceId: deviceId || undefined,
+          active: true,
+        }
+        directory.vehicles.push(vehicle)
+        warnings.push(`Vehículo ${vehicle.plate} no estaba registrado; se dio de alta automáticamente.`)
+      }
+
+      const actualStart = parseDate(field(row, 'actualStart')) || parseDate(row.date ? `${row.date} ${row.time ?? ''}` : undefined)
       const actualEnd = parseDate(field(row, 'actualEnd'))
-      if (!vehicle || !actualStart) {
-        errors.push(`Fila ${index + 2}: requiere un vehículo conocido y una fecha de inicio válida.`)
+
+      if (!actualStart) {
+        errors.push(`Fila ${index + 2}: requiere una fecha de inicio válida.`)
         return
       }
       if (actualEnd && new Date(actualEnd) < new Date(actualStart)) {
