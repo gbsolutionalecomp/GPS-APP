@@ -26,22 +26,26 @@ const nextConfig = {
   },
   async headers() {
     const supabaseOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-    const isProduction = process.env.VERCEL_ENV === 'production'
-    const csp = [
+    const isDev = process.env.NODE_ENV !== 'production'
+    const cspDirectives = [
       "default-src 'self'",
       "base-uri 'self'",
       "form-action 'self'",
       "frame-ancestors 'none'",
       "object-src 'none'",
-      `script-src 'self' ${isProduction ? "'unsafe-inline'" : "'unsafe-inline' 'unsafe-eval'"}`,
+      `script-src 'self' 'unsafe-inline' ${isDev ? "'unsafe-eval'" : ''}`.trim(),
       "style-src 'self' 'unsafe-inline'",
       `img-src 'self' data: blob: ${supabaseOrigin}`.trim(),
       `connect-src 'self' ${supabaseOrigin} wss://*.supabase.co`.trim(),
       "font-src 'self'",
-      "upgrade-insecure-requests",
-    ].join('; ')
+    ]
+
+    if (!isDev) {
+      cspDirectives.push('upgrade-insecure-requests')
+    }
+
     const headers = [
-      { key: 'Content-Security-Policy', value: csp },
+      { key: 'Content-Security-Policy', value: cspDirectives.join('; ') },
       { key: 'X-Content-Type-Options', value: 'nosniff' },
       { key: 'X-Frame-Options', value: 'DENY' },
       { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
@@ -49,7 +53,7 @@ const nextConfig = {
       { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
       { key: 'Cross-Origin-Resource-Policy', value: 'same-site' },
     ]
-    if (isProduction) {
+    if (!isDev) {
       headers.push({ key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' })
     }
     return [{ source: '/:path*', headers }]

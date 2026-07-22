@@ -43,7 +43,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   async function logout() {
     if (mode === 'supabase') await getSupabaseBrowserClient().auth.signOut()
-    router.push('/login')
+    router.push('/')
     router.refresh()
   }
 

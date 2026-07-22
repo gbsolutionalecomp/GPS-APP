@@ -14,15 +14,41 @@ export function LoginForm() {
   const { mode, setDemoRole } = useApp()
   const [error, setError] = useState<string | undefined>(search.get('error') === 'confirm_failed' ? CONFIRM_ERROR_MESSAGE : undefined)
   const [busy, setBusy] = useState(false)
+  const [method, setMethod] = useState<'password' | 'code'>('password')
   const [step, setStep] = useState<'email' | 'code'>('email')
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
   const [sent, setSent] = useState(false)
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setBusy(true); setError(undefined)
-    const data = new FormData(event.currentTarget)
-    const currentEmail = String(data.get('email') ?? email).trim().toLowerCase()
+  async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setBusy(true)
+    setError(undefined)
+    const currentEmail = email.trim().toLowerCase()
+    if (!currentEmail.includes('@')) {
+      setError('Escribe un correo válido.')
+      setBusy(false)
+      return
+    }
+    const { error: loginError } = await getSupabaseBrowserClient().auth.signInWithPassword({
+      email: currentEmail,
+      password,
+    })
+    setBusy(false)
+    if (loginError) {
+      setError('Correo o contraseña incorrectos. Revisa tus datos.')
+      return
+    }
+    router.push(search.get('next') || '/')
+    router.refresh()
+  }
+
+  async function handleOtpSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setBusy(true)
+    setError(undefined)
+    const currentEmail = email.trim().toLowerCase()
     if (!currentEmail.includes('@')) {
       setError('Escribe un correo válido.')
       setBusy(false)
@@ -35,13 +61,13 @@ export function LoginForm() {
         options: { shouldCreateUser: true, emailRedirectTo: redirectTo },
       })
       setBusy(false)
-      if (otpError) { setError('No fue posible enviar el código. Verifica el correo.'); return }
+      if (otpError) { setError('No fue posible enviar el código. Verifica el correo o intenta ingresar con contraseña.'); return }
       setEmail(currentEmail)
       setSent(true)
       setStep('code')
       return
     }
-    const currentCode = String(data.get('code') ?? code).replace(/\D/g, '').slice(0, 6)
+    const currentCode = String(dataCode()).replace(/\D/g, '').slice(0, 6)
     if (!currentCode) {
       setError('Escribe el código de verificación.')
       setBusy(false)
@@ -49,23 +75,73 @@ export function LoginForm() {
     }
     const { error: verifyError } = await getSupabaseBrowserClient().auth.verifyOtp({ email: currentEmail, token: currentCode, type: 'email' })
     if (verifyError) { setError('El código no es válido o expiró.'); setBusy(false); return }
-    router.push(search.get('next') || '/'); router.refresh()
+    router.push(search.get('next') || '/')
+    router.refresh()
+  }
+
+  function dataCode() {
+    return code
   }
 
   if (mode === 'demo') return <div className="stack"><div className="notice"><div><strong>Modo de demostración</strong><span>Usa datos sintéticos; no modifica Supabase ni la plataforma GPS.</span></div></div><Button onClick={() => { setDemoRole('admin'); router.push('/') }} type="button">Entrar como administrador</Button><Button onClick={() => { setDemoRole('engineer'); router.push('/mis-viajes') }} type="button" variant="secondary">Entrar como ingeniero</Button></div>
 
-  return <form className="stack" onSubmit={submit}>
-    <div className="notice">
-      <div>
-        <strong>Acceso por código</strong>
-        <span>{step === 'email' ? 'Te enviaremos un código al correo para crear o abrir tu cuenta.' : `Ya enviamos el código a ${email}.`}</span>
+  return (
+    <div className="stack">
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+        <Button
+          type="button"
+          variant={method === 'password' ? 'primary' : 'secondary'}
+          onClick={() => { setMethod('password'); setError(undefined) }}
+          style={{ flex: 1 }}
+        >
+          Contraseña
+        </Button>
+        <Button
+          type="button"
+          variant={method === 'code' ? 'primary' : 'secondary'}
+          onClick={() => { setMethod('code'); setError(undefined) }}
+          style={{ flex: 1 }}
+        >
+          Código por correo
+        </Button>
       </div>
+
+      {method === 'password' ? (
+        <form className="stack" onSubmit={handlePasswordSubmit}>
+          <div className="notice">
+            <div>
+              <strong>Inicio de sesión con contraseña</strong>
+              <span>Ingresa con tu correo institucional y tu contraseña.</span>
+            </div>
+          </div>
+          <label className="form-field">
+            Correo institucional
+            <input autoComplete="email" name="email" onChange={(e) => setEmail(e.target.value)} required type="email" value={email} />
+          </label>
+          <label className="form-field">
+            Contraseña
+            <input autoComplete="current-password" name="password" onChange={(e) => setPassword(e.target.value)} required type="password" value={password} />
+          </label>
+          <Button disabled={busy} type="submit">{busy ? 'Ingresando…' : 'Iniciar sesión'}</Button>
+          {error ? <p className="form-error" role="alert">{error}</p> : null}
+        </form>
+      ) : (
+        <form className="stack" onSubmit={handleOtpSubmit}>
+          <div className="notice">
+            <div>
+              <strong>Acceso por código</strong>
+              <span>{step === 'email' ? 'Te enviaremos un código al correo para crear o abrir tu cuenta.' : `Ya enviamos el código a ${email}.`}</span>
+            </div>
+          </div>
+          <label className="form-field">Correo institucional<input autoComplete="email" name="email" onChange={(event) => setEmail(event.target.value)} required type="email" value={email}/></label>
+          {step === 'code' ? <label className="form-field">Código de verificación<input autoComplete="one-time-code" inputMode="numeric" name="code" onChange={(event) => setCode(event.target.value)} placeholder="123456" required value={code}/></label> : null}
+          <Button disabled={busy} type="submit">{busy ? (step === 'email' ? 'Enviando…' : 'Verificando…') : (step === 'email' ? 'Enviar código' : 'Validar código')}</Button>
+          {step === 'code' ? <Button onClick={() => { setStep('email'); setSent(false); setCode(''); setError(undefined) }} type="button" variant="secondary">Usar otro correo</Button> : null}
+          {sent && step === 'code' ? <p className="form-message" role="status">Revisa tu bandeja de entrada o SPAM para ingresar el código de 6 dígitos.</p> : null}
+          {error ? <p className="form-error" role="alert">{error}</p> : null}
+        </form>
+      )}
     </div>
-    <label className="form-field">Correo institucional<input autoComplete="email" name="email" onChange={(event) => setEmail(event.target.value)} required type="email" value={email}/></label>
-    {step === 'code' ? <label className="form-field">Código de verificación<input autoComplete="one-time-code" inputMode="numeric" name="code" onChange={(event) => setCode(event.target.value)} placeholder="123456" required value={code}/></label> : null}
-    <Button disabled={busy} type="submit">{busy ? (step === 'email' ? 'Enviando…' : 'Verificando…') : (step === 'email' ? 'Enviar código' : 'Validar código')}</Button>
-    {step === 'code' ? <Button onClick={() => { setStep('email'); setSent(false); setCode(''); setError(undefined) }} type="button" variant="secondary">Usar otro correo</Button> : null}
-    {sent && step === 'code' ? <p className="form-message" role="status">Revisa tu correo y escribe el código de 6 dígitos.</p> : null}
-    {error ? <p className="form-error" role="alert">{error}</p> : null}
-  </form>
+  )
 }
+

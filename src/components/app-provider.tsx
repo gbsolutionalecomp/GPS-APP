@@ -6,7 +6,7 @@ import type { DataMode } from '@/lib/env'
 import { readImageMetadata } from '@/lib/media/image-metadata'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 
-const DEMO_KEY = 'gbs-gps-demo-v1'
+const DEMO_KEY = 'gbs-gps-demo-v3'
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024
 const ACCEPTED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 

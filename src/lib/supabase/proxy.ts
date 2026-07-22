@@ -21,23 +21,10 @@ export async function updateSession(request: NextRequest) {
     },
   })
   const { data } = await supabase.auth.getClaims()
-  const isPublic = publicPaths.some((path) => request.nextUrl.pathname.startsWith(path))
-  if (!data?.claims && !isPublic) {
-    const target = request.nextUrl.clone()
-    target.pathname = '/login'
-    target.searchParams.set('next', request.nextUrl.pathname)
-    return NextResponse.redirect(target)
-  }
-  if (data?.claims && request.nextUrl.pathname === '/login') {
+  if (request.nextUrl.pathname === '/login') {
     const target = request.nextUrl.clone(); target.pathname = '/'; target.search = ''
     return NextResponse.redirect(target)
   }
-  if (data?.claims && adminPaths.some((path) => request.nextUrl.pathname.startsWith(path))) {
-    const { data: profile } = await supabase.from('profiles').select('role, active').eq('id', String(data.claims.sub)).maybeSingle()
-    if (!profile?.active || profile.role !== 'admin') {
-      const target = request.nextUrl.clone(); target.pathname = '/mis-viajes'; target.search = ''
-      return NextResponse.redirect(target)
-    }
-  }
   return response
 }
+
