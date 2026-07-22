@@ -4,13 +4,13 @@ import type { LocateliaAdapter, LocateliaDirectory, NormalizedLocateliaBatch } f
 import { journeyFingerprint } from './fingerprint'
 
 const aliases = {
-  externalId: ['id', 'id viaje', 'id recorrido', 'trip id', 'viaje', 'folio', 'referencia'],
-  plate: ['placa', 'matricula', 'matrícula', 'vehicle', 'vehiculo', 'vehículo', 'unidad'],
-  deviceId: ['id dispositivo', 'device id', 'gps id', 'localizador'],
-  actualStart: ['inicio', 'fecha inicio', 'hora inicio', 'start', 'fecha salida', 'salida'],
-  actualEnd: ['fin', 'fecha fin', 'hora fin', 'end', 'fecha llegada', 'llegada'],
-  origin: ['origen', 'ubicacion inicial', 'ubicación inicial', 'punto inicial'],
-  destination: ['destino', 'ubicacion final', 'ubicación final', 'punto final'],
+  externalId: ['id', 'id viaje', 'id recorrido', 'trip id', 'viaje', 'folio', 'referencia', 'externalid', 'external_id'],
+  plate: ['placa', 'matricula', 'matrícula', 'vehicle', 'vehiculo', 'vehículo', 'unidad', 'plate'],
+  deviceId: ['id dispositivo', 'device id', 'gps id', 'localizador', 'deviceid', 'device_id'],
+  actualStart: ['inicio', 'fecha inicio', 'hora inicio', 'start', 'fecha salida', 'salida', 'actualstart', 'actual_start'],
+  actualEnd: ['fin', 'fecha fin', 'hora fin', 'end', 'fecha llegada', 'llegada', 'actualend', 'actual_end'],
+  origin: ['origen', 'ubicacion inicial', 'ubicación inicial', 'punto inicial', 'origin'],
+  destination: ['destino', 'ubicacion final', 'ubicación final', 'punto final', 'destination'],
   distance: ['km', 'kilometros', 'kilómetros', 'distancia', 'distance', 'km recorridos'],
   stops: ['paradas', 'stops', 'detalle paradas'],
 } as const
@@ -20,6 +20,7 @@ function normalizeHeader(value: unknown): string {
 }
 
 function field(row: Record<string, unknown>, key: keyof typeof aliases): string {
+  if (row[key] !== undefined && row[key] !== null) return String(row[key]).trim()
   const wanted = new Set(aliases[key].map(normalizeHeader))
   const entry = Object.entries(row).find(([header]) => wanted.has(normalizeHeader(header)))
   return String(entry?.[1] ?? '').trim()
