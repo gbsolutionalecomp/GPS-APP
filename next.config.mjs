@@ -26,13 +26,14 @@ const nextConfig = {
   },
   async headers() {
     const supabaseOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+    const isProduction = process.env.VERCEL_ENV === 'production'
     const csp = [
       "default-src 'self'",
       "base-uri 'self'",
       "form-action 'self'",
       "frame-ancestors 'none'",
       "object-src 'none'",
-      "script-src 'self' 'unsafe-inline'",
+      `script-src 'self' ${isProduction ? "'unsafe-inline'" : "'unsafe-inline' 'unsafe-eval'"}`,
       "style-src 'self' 'unsafe-inline'",
       `img-src 'self' data: blob: ${supabaseOrigin}`.trim(),
       `connect-src 'self' ${supabaseOrigin} wss://*.supabase.co`.trim(),
@@ -48,7 +49,7 @@ const nextConfig = {
       { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
       { key: 'Cross-Origin-Resource-Policy', value: 'same-site' },
     ]
-    if (process.env.VERCEL_ENV === 'production') {
+    if (isProduction) {
       headers.push({ key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' })
     }
     return [{ source: '/:path*', headers }]
