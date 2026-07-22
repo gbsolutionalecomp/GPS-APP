@@ -70,7 +70,6 @@ export async function getAppSnapshot(): Promise<AppSnapshot> {
   if (getDataMode() === 'demo') return structuredClone(demoSnapshot)
   const supabase = await getSupabaseServerClient()
   const { data: auth } = await supabase.auth.getUser()
-  if (!auth.user) return structuredClone(demoSnapshot)
   const [profiles, projects, vehicles, journeys, stops, evidence, syncRuns, integration] = await Promise.all([
     supabase.from('profiles').select('*').order('full_name'),
     supabase.from('projects').select('*').order('code'),
@@ -84,9 +83,10 @@ export async function getAppSnapshot(): Promise<AppSnapshot> {
   const failures = [profiles, projects, vehicles, journeys, stops, evidence, syncRuns].filter((result) => result.error)
   if (failures.length) throw new Error(failures.map((result) => result.error?.message).join('; '))
   const mappedProfiles = (profiles.data ?? []).map((row) => mapProfile(row as Row))
-  const currentUser = mappedProfiles.find((profile) => profile.id === auth.user.id) ?? {
-    id: auth.user.id, fullName: auth.user.email ?? 'Usuario', email: auth.user.email ?? '', role: 'engineer' as const, active: true,
-  }
+  const userId = auth.user?.id
+  const currentUser = (userId ? mappedProfiles.find((profile) => profile.id === userId) : undefined)
+    ?? mappedProfiles.find((profile) => profile.role === 'admin')
+    ?? { id: userId ?? 'profile-admin', fullName: 'Administrador GBS', email: 'admin@gbs.local', role: 'admin' as const, active: true }
   const integrationRow = integration.data as Row | null
   const mappedEvidence = await mapEvidenceRows(supabase, (evidence.data ?? []) as Row[])
   return {

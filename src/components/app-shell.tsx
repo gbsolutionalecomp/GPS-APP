@@ -17,12 +17,11 @@ interface NavigationItem {
 }
 
 const navigation: NavigationItem[] = [
-  { href: '/', label: 'Panel operativo', icon: 'dashboard', roles: ['admin'] },
   { href: '/viajes', label: 'Viajes', icon: 'trip', roles: ['admin'] },
-  { href: '/mis-viajes', label: 'Mis viajes', icon: 'car', roles: ['engineer'] },
-  { href: '/reportes', label: 'Reporte mensual', icon: 'report', roles: ['admin'] },
-  { href: '/catalogos', label: 'Equipo y unidades', icon: 'catalog', roles: ['admin'] },
+  { href: '/registros', label: 'Registros', icon: 'catalog', roles: ['admin'] },
   { href: '/integracion', label: 'Subir recorridos', icon: 'sync', roles: ['admin'] },
+  { href: '/reportes', label: 'Reporte mensual', icon: 'report', roles: ['admin'] },
+  { href: '/mis-viajes', label: 'Mis viajes', icon: 'car', roles: ['engineer'] },
 ]
 
 function activePath(pathname: string, href: string): boolean {
