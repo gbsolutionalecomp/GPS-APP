@@ -61,10 +61,26 @@ export async function POST(request: Request) {
         const result = await persistJourney(journey, normalized.stops.filter((stop) => stop.journeyId === journey.id))
         if (result === 'inserted') inserted += 1; else updated += 1
       }
-      await supabase.from('import_batches').insert({ provider: 'locatelia', file_name: file.name, row_count: records.length, accepted_count: normalized.journeys.length, rejected_count: normalized.errors.length, imported_by: authorization.userId })
+      try {
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(authorization.userId)
+        let userId = isUuid ? authorization.userId : undefined
+        if (!userId) {
+          const { data: admin } = await supabase.from('profiles').select('id').eq('role', 'admin').maybeSingle()
+          userId = admin?.id
+        }
+        if (userId) {
+          await supabase.from('import_batches').insert({
+            provider: 'locatelia', file_name: file.name, row_count: records.length,
+            accepted_count: normalized.journeys.length, rejected_count: normalized.errors.length, imported_by: userId,
+          })
+        }
+      } catch (logErr) {
+        console.warn('Import audit log warning:', logErr)
+      }
     }
     return NextResponse.json({ fileName: file.name, acceptedRows: normalized.journeys.length, rejectedRows: normalized.errors.length, warnings: normalized.warnings, errors: normalized.errors.slice(0, 100), journeys: normalized.journeys, stops: normalized.stops, inserted, updated, committed: getDataMode() === 'supabase' })
   } catch (cause) {
+    console.error('Import error:', cause)
     return NextResponse.json({ error: cause instanceof Error ? cause.message : 'No fue posible importar el archivo.' }, { status: 422 })
   }
 }
