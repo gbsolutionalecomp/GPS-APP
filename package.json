@@ -7,14 +7,6 @@
   "engines": {
     "node": "24.x"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "sharp",
-      "supabase",
-      "unrs-resolver"
-    ]
-  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
