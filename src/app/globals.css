@@ -32,9 +32,32 @@
   --font-mono: Arial, "Helvetica Neue", Helvetica, sans-serif;
 }
 
+html[data-theme="inverted"] {
+  --bg: #09090b;
+  --surface: #18181b;
+  --surface-subtle: #27272a;
+  --surface-strong: #3f3f46;
+  --text: #ffffff;
+  --text-secondary: #d4d4d8;
+  --text-tertiary: #a1a1aa;
+  --border: #27272a;
+  --border-strong: #3f3f46;
+  --sidebar: #000000;
+  --sidebar-soft: #18181b;
+  --sidebar-muted: #a1a1aa;
+  --accent: #ffffff;
+  --accent-hover: #e4e4e7;
+  --accent-soft: #27272a;
+}
+
+html[data-font-size="sm"] { font-size: 12px; }
+html[data-font-size="md"] { font-size: 14px; }
+html[data-font-size="lg"] { font-size: 16px; }
+html[data-font-size="xl"] { font-size: 18px; }
+
 * { box-sizing: border-box; }
-html { background: var(--bg); color: var(--text); font-family: var(--font-sans); font-size: 14px; line-height: 1.5; text-rendering: optimizeLegibility; }
-body { margin: 0; min-width: 320px; font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+html { background: var(--bg); color: var(--text); font-family: var(--font-sans); font-size: 14px; line-height: 1.5; text-rendering: optimizeLegibility; transition: background-color 0.2s ease, color 0.2s ease; }
+body { margin: 0; min-width: 320px; font-family: var(--font-sans); -webkit-font-smoothing: antialiased; background: var(--bg); color: var(--text); }
 button, input, select, textarea { color: inherit; font-family: var(--font-sans); font-size: 13px; }
 button, a { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; text-decoration: none; }

@@ -1,6 +1,6 @@
 import type { SVGProps } from 'react'
 
-export type IconName = 'dashboard' | 'trip' | 'calendar' | 'user' | 'report' | 'catalog' | 'sync' | 'menu' | 'close' | 'camera' | 'upload' | 'arrow' | 'check' | 'warning' | 'location' | 'car' | 'logout' | 'download'
+export type IconName = 'dashboard' | 'trip' | 'calendar' | 'user' | 'report' | 'catalog' | 'sync' | 'menu' | 'close' | 'camera' | 'upload' | 'arrow' | 'check' | 'warning' | 'location' | 'car' | 'logout' | 'download' | 'settings'
 
 const paths: Record<IconName, React.ReactNode> = {
   dashboard: <><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></>,
@@ -21,6 +21,7 @@ const paths: Record<IconName, React.ReactNode> = {
   car: <><path d="M4 16V9l2-4h12l2 4v7"/><path d="M4 11h16"/><circle cx="7" cy="16" r="2"/><circle cx="17" cy="16" r="2"/></>,
   logout: <><path d="M10 5H5v14h5M14 8l4 4-4 4M8 12h10"/></>,
   download: <><path d="M12 4v12M7 11l5 5 5-5"/><path d="M4 20h16"/></>,
+  settings: <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></>,
 }
 
 export function Icon({ name, size = 18, ...props }: SVGProps<SVGSVGElement> & { name: IconName; size?: number }) {
