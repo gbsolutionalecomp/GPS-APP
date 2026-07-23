@@ -1,6 +1,7 @@
 import { demoSnapshot } from '@/data/demo'
 import type { AppSnapshot, Journey, JourneyStop, OdometerEvidence, Profile, Project, SyncRun, Vehicle } from '@/domain/types'
 import { getDataMode } from '@/lib/env'
+import { getSupabaseAdminClient } from '@/lib/supabase/admin'
 import { getSupabaseServerClient } from '@/lib/supabase/server'
 
 type Row = Record<string, unknown>
@@ -38,17 +39,12 @@ function mapStop(row: Row): JourneyStop {
   return { id: text(row.id), journeyId: text(row.journey_id), sequence: Number(row.sequence), arrivedAt: text(row.arrived_at), departedAt: maybeText(row.departed_at), location: text(row.location), durationMinutes: Number(row.duration_minutes) }
 }
 
-/**
- * Firma las URLs de las fotos directamente contra Storage (respeta las mismas políticas RLS
- * que el proxy anterior) para que las imágenes salgan del CDN en vez de pasar por el servidor
- * Next.js en cada carga. Si algo falla al firmar, cae de vuelta al proxy (/api/evidencias/[id]/foto).
- */
-async function mapEvidenceRows(supabase: SupabaseServerClient, rows: Row[]): Promise<OdometerEvidence[]> {
+async function mapEvidenceRows(supabase: any, rows: Row[]): Promise<OdometerEvidence[]> {
   const paths = [...new Set(rows.map((row) => text(row.storage_path)).filter(Boolean))]
   const signed = paths.length
     ? await supabase.storage.from('odometer-evidence').createSignedUrls(paths, EVIDENCE_SIGNED_URL_TTL_SECONDS)
     : { data: null }
-  const urlByPath = new Map((signed.data ?? []).filter((item) => item.signedUrl && !item.error).map((item) => [item.path, item.signedUrl]))
+  const urlByPath = new Map<string, string>(((signed as any).data ?? []).filter((item: any) => item.signedUrl && !item.error).map((item: any) => [item.path, item.signedUrl as string]))
   return rows.map((row) => {
     const id = text(row.id)
     const storagePath = text(row.storage_path)

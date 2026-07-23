@@ -5,34 +5,9 @@ import { parseLocateliaFile } from '@/features/imports/locatelia-file'
 import { DefaultLocateliaAdapter } from '@/integrations/locatelia/adapter'
 import { authorizeAdmin } from '@/lib/authorization'
 import { getDataMode } from '@/lib/env'
-import { getSupabaseServerClient } from '@/lib/supabase/server'
+import { getSupabaseAdminClient } from '@/lib/supabase/admin'
 
 export const runtime = 'nodejs'
-
-async function persistJourney(journey: Journey, stops: JourneyStop[]): Promise<'inserted' | 'updated'> {
-  const supabase = await getSupabaseServerClient()
-  const planned = await supabase.from('journeys').select('id').eq('vehicle_id', journey.vehicleId).is('actual_start', null).lte('planned_start', journey.actualEnd ?? journey.actualStart!).gte('planned_end', journey.actualStart!).limit(2)
-  let targetId = journey.id
-  if ((planned.data?.length ?? 0) === 1) targetId = planned.data![0]!.id
-  if (targetId === journey.id) {
-    const keyQuery = journey.externalId ? supabase.from('journeys').select('id').eq('external_id', journey.externalId) : supabase.from('journeys').select('id').eq('fingerprint', journey.fingerprint!)
-    const existing = await keyQuery.maybeSingle()
-    if (existing.data?.id) targetId = existing.data.id
-  }
-  const values = {
-    id: targetId, external_id: journey.externalId, fingerprint: journey.fingerprint, source: journey.source, vehicle_id: journey.vehicleId,
-    actual_start: journey.actualStart, actual_end: journey.actualEnd, origin: journey.origin, destination: journey.destination,
-    gps_distance_km: journey.gpsDistanceKm, source_updated_at: journey.sourceUpdatedAt,
-  }
-  const { error } = await supabase.from('journeys').upsert(values, { onConflict: 'id' })
-  if (error) throw error
-  if (stops.length) {
-    const stopRows = stops.map((stop) => ({ journey_id: targetId, sequence: stop.sequence, arrived_at: stop.arrivedAt, departed_at: stop.departedAt, location: stop.location, duration_minutes: stop.durationMinutes }))
-    const result = await supabase.from('journey_stops').upsert(stopRows, { onConflict: 'journey_id,sequence' })
-    if (result.error) throw result.error
-  }
-  return targetId === journey.id ? 'inserted' : 'updated'
-}
 
 export async function POST(request: Request) {
   const authorization = await authorizeAdmin()
@@ -48,7 +23,7 @@ export async function POST(request: Request) {
     let inserted = 0
     let updated = 0
     if (getDataMode() === 'supabase') {
-      const supabase = await getSupabaseServerClient()
+      const supabase = getSupabaseAdminClient()
       if (directory.vehicles.length) {
         const vehicleRows = directory.vehicles.map((v) => ({
           id: v.id,
