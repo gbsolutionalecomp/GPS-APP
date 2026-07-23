@@ -1,6 +1,16 @@
-import { NextResponse } from 'next/server'
 import { getDataMode } from '@/lib/env'
+import { apiSuccess } from '@/lib/api-response'
 
 export function GET() {
-  return NextResponse.json({ ok: true, service: 'gbs-control-viajes-gps', dataMode: getDataMode(), checkedAt: new Date().toISOString() }, { headers: { 'cache-control': 'no-store' } })
+  return apiSuccess(
+    {
+      ok: true,
+      service: 'gbs-control-viajes-gps',
+      dataMode: getDataMode(),
+      supabase: getDataMode() === 'supabase' ? 'configured' : 'demo_mode',
+      checkedAt: new Date().toISOString(),
+    },
+    200,
+    { 'cache-control': 'no-store' }
+  )
 }

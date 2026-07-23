@@ -1,0 +1,5 @@
+export * from './viaje.schema'
+export * from './gps.schema'
+export * from './parada.schema'
+export * from './evidencia.schema'
+export * from './usuario.schema'

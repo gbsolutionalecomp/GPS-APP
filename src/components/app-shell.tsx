@@ -34,18 +34,19 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter()
   const { mode, snapshot, error, setDemoRole } = useApp()
   const [menuOpen, setMenuOpen] = useState(false)
-  const [logoUrl, setLogoUrl] = useState<string>('/logo.png')
+  const [logoUrl, setLogoUrl] = useState<string>(() => {
+    if (typeof window === 'undefined') return '/logo.png'
+    return window.localStorage.getItem('gbs_logo_url') || '/logo.png'
+  })
   const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/auth/')
 
   useEffect(() => {
     if (typeof window === 'undefined') return
     const theme = window.localStorage.getItem('gbs_theme') || 'standard'
     const fontSize = window.localStorage.getItem('gbs_font_size') || 'md'
-    const savedLogo = window.localStorage.getItem('gbs_logo_url') || '/logo.png'
 
     document.documentElement.setAttribute('data-theme', theme)
     document.documentElement.setAttribute('data-font-size', fontSize)
-    setLogoUrl(savedLogo)
 
     const handleSettingsChange = () => {
       const updatedTheme = window.localStorage.getItem('gbs_theme') || 'standard'

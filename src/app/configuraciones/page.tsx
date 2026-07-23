@@ -1,27 +1,25 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Icon } from '@/components/ui/icon'
 import { PageHeader } from '@/components/ui/page-header'
 
 export default function SettingsPage() {
-  const [theme, setTheme] = useState<'standard' | 'inverted'>('standard')
-  const [fontSize, setFontSize] = useState<'sm' | 'md' | 'lg' | 'xl'>('md')
-  const [logoUrl, setLogoUrl] = useState<string>('/logo.png')
+  const [theme, setTheme] = useState<'standard' | 'inverted'>(() => {
+    if (typeof window === 'undefined') return 'standard'
+    return (window.localStorage.getItem('gbs_theme') as 'standard' | 'inverted') || 'standard'
+  })
+  const [fontSize, setFontSize] = useState<'sm' | 'md' | 'lg' | 'xl'>(() => {
+    if (typeof window === 'undefined') return 'md'
+    return (window.localStorage.getItem('gbs_font_size') as 'sm' | 'md' | 'lg' | 'xl') || 'md'
+  })
+  const [logoUrl, setLogoUrl] = useState<string>(() => {
+    if (typeof window === 'undefined') return '/logo.png'
+    return window.localStorage.getItem('gbs_logo_url') || '/logo.png'
+  })
   const [savedMessage, setSavedMessage] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const currentTheme = (window.localStorage.getItem('gbs_theme') as 'standard' | 'inverted') || 'standard'
-    const currentFontSize = (window.localStorage.getItem('gbs_font_size') as 'sm' | 'md' | 'lg' | 'xl') || 'md'
-    const currentLogo = window.localStorage.getItem('gbs_logo_url') || '/logo.png'
-
-    setTheme(currentTheme)
-    setFontSize(currentFontSize)
-    setLogoUrl(currentLogo)
-  }, [])
 
   function notifyChange() {
     if (typeof window !== 'undefined') {
