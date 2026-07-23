@@ -34,23 +34,44 @@ function isHistorySheet(headers: string[]): boolean {
   return normalized.includes('fecha') && normalized.includes('hora') && normalized.includes('estado')
 }
 
+function extractVehicleFromFilename(fileName: string): string | undefined {
+  const match = fileName.match(/\b([A-Z0-9]{5,10})\b/i)
+  return match?.[1] ? match[1].toUpperCase() : undefined
+}
+
+function findHeaderRow(sheet: ExcelJS.Worksheet): { rowNumber: number; headers: string[] } | null {
+  for (let r = 1; r <= Math.min(sheet.rowCount, 10); r += 1) {
+    const values = (sheet.getRow(r).values as ExcelJS.CellValue[]).slice(1).map((val) => String(cellValue(val)).trim())
+    const normalized = values.map(normalizeHeader)
+    if (
+      (normalized.includes('fecha') && normalized.includes('hora') && normalized.includes('estado')) ||
+      normalized.includes('placa') || normalized.includes('vehiculo') || normalized.includes('inicio')
+    ) {
+      return { rowNumber: r, headers: values }
+    }
+  }
+  return null
+}
+
 function extractVehicleFromInfoSheet(workbook: ExcelJS.Workbook): string | undefined {
-  const sheet = workbook.getWorksheet('Info')
+  const sheet = workbook.getWorksheet('Info') ?? workbook.worksheets.find((w) => normalizeHeader(w.name).includes('info'))
   if (!sheet) return undefined
   for (let rowNumber = 1; rowNumber <= Math.min(sheet.rowCount, 20); rowNumber += 1) {
-    const left = String(cellValue(sheet.getRow(rowNumber).getCell(1).value)).trim()
-    const right = String(cellValue(sheet.getRow(rowNumber).getCell(2).value)).trim()
-    if (normalizeHeader(left).startsWith('vehiculo') && right) return right
+    const row = sheet.getRow(rowNumber)
+    for (let col = 1; col <= 5; col += 1) {
+      const left = String(cellValue(row.getCell(col).value)).trim()
+      const right = String(cellValue(row.getCell(col + 1).value)).trim()
+      if (normalizeHeader(left).includes('vehiculo') && right) return right
+    }
   }
   return undefined
 }
 
-function parseHistoryWorkbook(sheet: ExcelJS.Worksheet, inferredVehicle?: string): Record<string, unknown>[] {
-  const headers = (sheet.getRow(1).values as ExcelJS.CellValue[]).slice(1).map((value) => String(cellValue(value)).trim())
-  if (!isHistorySheet(headers)) return []
+function parseHistoryWorkbook(sheet: ExcelJS.Worksheet, headerInfo: { rowNumber: number; headers: string[] }, inferredVehicle?: string): Record<string, unknown>[] {
+  const { rowNumber: headerRowIndex, headers } = headerInfo
   const rows: Record<string, unknown>[] = []
   sheet.eachRow((row, rowNumber) => {
-    if (rowNumber === 1 || rows.length >= MAX_ROWS) return
+    if (rowNumber <= headerRowIndex || rows.length >= MAX_ROWS) return
     const record: Record<string, unknown> = {}
     headers.forEach((header, index) => { if (!header) return; record[header] = cellValue(row.getCell(index + 1).value) })
     const date = String(record[headers[0] ?? ''] ?? '').trim()
@@ -114,23 +135,34 @@ export async function parseLocateliaFile(file: File): Promise<Record<string, unk
     if (bytes[0] !== 0x50 || bytes[1] !== 0x4b) throw new Error('El archivo no es un XLSX válido.')
     const workbook = new ExcelJS.Workbook()
     await workbook.xlsx.load(bytes as unknown as ExcelJS.Buffer)
-    const historySheet = workbook.worksheets.find((sheet) => isHistorySheet((sheet.getRow(1).values as ExcelJS.CellValue[]).slice(1).map((value) => String(cellValue(value)).trim())))
-    if (historySheet) {
-      const historyRows = parseHistoryWorkbook(historySheet, extractVehicleFromInfoSheet(workbook))
-      const collapsed = collapseHistoryRows(historyRows)
-      if (collapsed.length) return collapsed
+
+    let inferredVehicle = extractVehicleFromInfoSheet(workbook) || extractVehicleFromFilename(file.name)
+
+    for (const sheet of workbook.worksheets) {
+      const headerInfo = findHeaderRow(sheet)
+      if (headerInfo && isHistorySheet(headerInfo.headers)) {
+        const historyRows = parseHistoryWorkbook(sheet, headerInfo, inferredVehicle)
+        const collapsed = collapseHistoryRows(historyRows)
+        if (collapsed.length) return collapsed
+      }
     }
+
+    // Fallback: standard table sheet
     const sheet = workbook.worksheets[0]
     if (!sheet || sheet.rowCount < 2) throw new Error('El Excel no contiene encabezados y datos.')
-    const headers = (sheet.getRow(1).values as ExcelJS.CellValue[]).slice(1).map((value) => String(cellValue(value)).trim())
+    const headerInfo = findHeaderRow(sheet) ?? { rowNumber: 1, headers: (sheet.getRow(1).values as ExcelJS.CellValue[]).slice(1).map((v) => String(cellValue(v)).trim()) }
+    const { rowNumber: startRow, headers } = headerInfo
     const rows: Record<string, unknown>[] = []
     sheet.eachRow((row, rowNumber) => {
-      if (rowNumber === 1 || rows.length >= MAX_ROWS) return
+      if (rowNumber <= startRow || rows.length >= MAX_ROWS) return
       const record: Record<string, unknown> = {}; let populated = false
       headers.forEach((header, index) => { if (!header) return; const value = cellValue(row.getCell(index + 1).value); record[header] = value; if (String(value).trim()) populated = true })
-      if (populated) rows.push(record)
+      if (populated) {
+        if (!record.vehicle && inferredVehicle) record.vehicle = inferredVehicle
+        rows.push(record)
+      }
     })
-    if (sheet.rowCount - 1 > MAX_ROWS) throw new Error(`El archivo supera ${MAX_ROWS.toLocaleString('es-MX')} filas.`)
+    if (rows.length === 0) throw new Error('No se encontraron registros de recorridos válidos en el archivo.')
     return rows
   }
   if (!['csv', 'txt'].includes(extension ?? '')) throw new Error('Formato no permitido. Usa XLSX, CSV o TXT.')
