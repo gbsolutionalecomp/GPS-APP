@@ -70,8 +70,9 @@ export default function RegistrosPage() {
         </div>
       ) : null}
 
-      <div className="tabs">
+      <div className="tabs" role="tablist">
         <button
+          role="tab"
           aria-selected={activeTab === 'vehiculos'}
           onClick={() => { setActiveTab('vehiculos'); setMessage(undefined) }}
           type="button"
@@ -79,6 +80,7 @@ export default function RegistrosPage() {
           Alta de Vehículos ({snapshot.vehicles.length})
         </button>
         <button
+          role="tab"
           aria-selected={activeTab === 'ingenieros'}
           onClick={() => { setActiveTab('ingenieros'); setMessage(undefined) }}
           type="button"
@@ -86,6 +88,7 @@ export default function RegistrosPage() {
           Alta de Ingenieros ({snapshot.profiles.filter((p) => p.role === 'engineer').length})
         </button>
         <button
+          role="tab"
           aria-selected={activeTab === 'proyectos'}
           onClick={() => { setActiveTab('proyectos'); setMessage(undefined) }}
           type="button"
@@ -93,6 +96,7 @@ export default function RegistrosPage() {
           Alta de Proyectos ({snapshot.projects.length})
         </button>
         <button
+          role="tab"
           aria-selected={activeTab === 'viajes'}
           onClick={() => { setActiveTab('viajes'); setMessage(undefined) }}
           type="button"

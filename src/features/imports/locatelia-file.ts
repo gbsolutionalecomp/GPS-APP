@@ -143,7 +143,7 @@ export async function parseLocateliaFile(file: File): Promise<Record<string, unk
     const workbook = new ExcelJS.Workbook()
     await workbook.xlsx.load(bytes as unknown as ExcelJS.Buffer)
 
-    let inferredVehicle = extractVehicleFromInfoSheet(workbook) || extractVehicleFromFilename(file.name)
+    const inferredVehicle = extractVehicleFromInfoSheet(workbook) || extractVehicleFromFilename(file.name)
 
     for (const sheet of workbook.worksheets) {
       const headerInfo = findHeaderRow(sheet)

@@ -1,10 +1,5 @@
 import type { AppSnapshot } from '@/domain/types'
 
-function odometerPhoto(reading: number, moment: 'INICIO' | 'FINAL'): string {
-  const accent = moment === 'INICIO' ? '#0f766e' : '#1d4ed8'
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="560" viewBox="0 0 900 560"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#111827"/><stop offset="1" stop-color="#374151"/></linearGradient></defs><rect width="900" height="560" fill="url(#g)"/><circle cx="450" cy="305" r="185" fill="#0b1220" stroke="#64748b" stroke-width="12"/><path d="M300 390 A180 180 0 0 1 600 390" fill="none" stroke="#94a3b8" stroke-width="15" stroke-dasharray="4 20"/><rect x="288" y="275" width="324" height="92" rx="14" fill="#020617" stroke="#cbd5e1" stroke-width="4"/><text x="450" y="340" text-anchor="middle" font-family="monospace" font-size="60" font-weight="700" fill="#f8fafc">${reading.toLocaleString('es-MX')} km</text><rect x="32" y="30" width="170" height="48" rx="24" fill="${accent}"/><text x="117" y="62" text-anchor="middle" font-family="Arial" font-size="22" font-weight="700" fill="white">${moment}</text><text x="450" y="505" text-anchor="middle" font-family="Arial" font-size="22" fill="#cbd5e1">Evidencia demostrativa · Unidad GBS-01</text></svg>`
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
-}
 
 export const demoSnapshot: AppSnapshot = {
   currentUser: {

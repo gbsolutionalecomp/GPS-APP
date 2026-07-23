@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { getAppSnapshot } from '@/data/server-snapshot'
-import type { Journey, JourneyStop } from '@/domain/types'
 import { parseLocateliaFile } from '@/features/imports/locatelia-file'
 import { DefaultLocateliaAdapter } from '@/integrations/locatelia/adapter'
 import { authorizeAdmin } from '@/lib/authorization'

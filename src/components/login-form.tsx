@@ -14,12 +14,19 @@ export function LoginForm() {
   const { mode, setDemoRole } = useApp()
   const [error, setError] = useState<string | undefined>(search.get('error') === 'confirm_failed' ? CONFIRM_ERROR_MESSAGE : undefined)
   const [busy, setBusy] = useState(false)
-  const [method, setMethod] = useState<'password' | 'code'>('password')
+  const [method, setMethod] = useState<'demo' | 'password' | 'code'>('demo')
   const [step, setStep] = useState<'email' | 'code'>('email')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
   const [sent, setSent] = useState(false)
+  const [otpFailed, setOtpFailed] = useState(false)
+
+  function enterDemo(role: 'admin' | 'engineer') {
+    setDemoRole(role)
+    router.push(role === 'engineer' ? '/mis-viajes' : '/')
+    router.refresh()
+  }
 
   async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -37,7 +44,7 @@ export function LoginForm() {
     })
     setBusy(false)
     if (loginError) {
-      setError('Correo o contraseña incorrectos. Revisa tus datos.')
+      setError('Correo o contraseña incorrectos. Revisa tus datos o usa el acceso directo.')
       return
     }
     router.push(search.get('next') || '/')
@@ -48,6 +55,7 @@ export function LoginForm() {
     event.preventDefault()
     setBusy(true)
     setError(undefined)
+    setOtpFailed(false)
     const currentEmail = email.trim().toLowerCase()
     if (!currentEmail.includes('@')) {
       setError('Escribe un correo válido.')
@@ -61,38 +69,67 @@ export function LoginForm() {
         options: { shouldCreateUser: true, emailRedirectTo: redirectTo },
       })
       setBusy(false)
-      if (otpError) { setError('No fue posible enviar el código. Verifica el correo o intenta ingresar con contraseña.'); return }
+      if (otpError) {
+        setOtpFailed(true)
+        setError('El proveedor de correo no envió el código (servidor SMTP no activo o límite alcanzado). Puedes usar el acceso directo.')
+        return
+      }
       setEmail(currentEmail)
       setSent(true)
       setStep('code')
       return
     }
-    const currentCode = String(dataCode()).replace(/\D/g, '').slice(0, 6)
+    const currentCode = code.replace(/\D/g, '').slice(0, 6)
     if (!currentCode) {
-      setError('Escribe el código de verificación.')
+      setError('Escribe el código de verificación de 6 dígitos.')
       setBusy(false)
       return
     }
     const { error: verifyError } = await getSupabaseBrowserClient().auth.verifyOtp({ email: currentEmail, token: currentCode, type: 'email' })
-    if (verifyError) { setError('El código no es válido o expiró.'); setBusy(false); return }
+    setBusy(false)
+    if (verifyError) {
+      setError('El código no es válido o expiró.')
+      return
+    }
     router.push(search.get('next') || '/')
     router.refresh()
   }
 
-  function dataCode() {
-    return code
+  if (mode === 'demo') {
+    return (
+      <div className="stack">
+        <div className="notice">
+          <div>
+            <strong>Acceso Directo</strong>
+            <span>Selecciona un perfil para ingresar inmediatamente a la plataforma.</span>
+          </div>
+        </div>
+        <Button onClick={() => enterDemo('admin')} type="button" variant="primary">
+          Entrar como Administrador
+        </Button>
+        <Button onClick={() => enterDemo('engineer')} type="button" variant="secondary">
+          Entrar como Ingeniero
+        </Button>
+      </div>
+    )
   }
-
-  if (mode === 'demo') return <div className="stack"><div className="notice"><div><strong>Modo de demostración</strong><span>Usa datos sintéticos; no modifica Supabase ni la plataforma GPS.</span></div></div><Button onClick={() => { setDemoRole('admin'); router.push('/') }} type="button">Entrar como administrador</Button><Button onClick={() => { setDemoRole('engineer'); router.push('/mis-viajes') }} type="button" variant="secondary">Entrar como ingeniero</Button></div>
 
   return (
     <div className="stack">
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+      <div style={{ display: 'flex', gap: '0.375rem', marginBottom: '0.25rem' }}>
+        <Button
+          type="button"
+          variant={method === 'demo' ? 'primary' : 'secondary'}
+          onClick={() => { setMethod('demo'); setError(undefined) }}
+          style={{ flex: 1, fontSize: '11px' }}
+        >
+          Acceso Directo
+        </Button>
         <Button
           type="button"
           variant={method === 'password' ? 'primary' : 'secondary'}
           onClick={() => { setMethod('password'); setError(undefined) }}
-          style={{ flex: 1 }}
+          style={{ flex: 1, fontSize: '11px' }}
         >
           Contraseña
         </Button>
@@ -100,13 +137,28 @@ export function LoginForm() {
           type="button"
           variant={method === 'code' ? 'primary' : 'secondary'}
           onClick={() => { setMethod('code'); setError(undefined) }}
-          style={{ flex: 1 }}
+          style={{ flex: 1, fontSize: '11px' }}
         >
-          Código por correo
+          Código OTP
         </Button>
       </div>
 
-      {method === 'password' ? (
+      {method === 'demo' ? (
+        <div className="stack">
+          <div className="notice">
+            <div>
+              <strong>Acceso Rápido</strong>
+              <span>Ingresa directamente a la vista operativa sin esperar correos.</span>
+            </div>
+          </div>
+          <Button onClick={() => enterDemo('admin')} type="button" variant="primary">
+            Ingresar como Administrador
+          </Button>
+          <Button onClick={() => enterDemo('engineer')} type="button" variant="secondary">
+            Ingresar como Ingeniero
+          </Button>
+        </div>
+      ) : method === 'password' ? (
         <form className="stack" onSubmit={handlePasswordSubmit}>
           <div className="notice">
             <div>
@@ -129,19 +181,42 @@ export function LoginForm() {
         <form className="stack" onSubmit={handleOtpSubmit}>
           <div className="notice">
             <div>
-              <strong>Acceso por código</strong>
-              <span>{step === 'email' ? 'Te enviaremos un código al correo para crear o abrir tu cuenta.' : `Ya enviamos el código a ${email}.`}</span>
+              <strong>Acceso por código por correo</strong>
+              <span>{step === 'email' ? 'Escribe tu correo para solicitar tu código de 6 dígitos.' : `Código enviado a ${email}.`}</span>
             </div>
           </div>
-          <label className="form-field">Correo institucional<input autoComplete="email" name="email" onChange={(event) => setEmail(event.target.value)} required type="email" value={email}/></label>
-          {step === 'code' ? <label className="form-field">Código de verificación<input autoComplete="one-time-code" inputMode="numeric" name="code" onChange={(event) => setCode(event.target.value)} placeholder="123456" required value={code}/></label> : null}
-          <Button disabled={busy} type="submit">{busy ? (step === 'email' ? 'Enviando…' : 'Verificando…') : (step === 'email' ? 'Enviar código' : 'Validar código')}</Button>
-          {step === 'code' ? <Button onClick={() => { setStep('email'); setSent(false); setCode(''); setError(undefined) }} type="button" variant="secondary">Usar otro correo</Button> : null}
-          {sent && step === 'code' ? <p className="form-message" role="status">Revisa tu bandeja de entrada o SPAM para ingresar el código de 6 dígitos.</p> : null}
+          <label className="form-field">
+            Correo institucional
+            <input autoComplete="email" name="email" onChange={(event) => setEmail(event.target.value)} required type="email" value={email}/>
+          </label>
+          {step === 'code' ? (
+            <label className="form-field">
+              Código de verificación
+              <input autoComplete="one-time-code" inputMode="numeric" name="code" onChange={(event) => setCode(event.target.value)} placeholder="123456" required value={code}/>
+            </label>
+          ) : null}
+          <Button disabled={busy} type="submit">{busy ? (step === 'email' ? 'Enviando…' : 'Verificando…') : (step === 'email' ? 'Enviar código por correo' : 'Validar código')}</Button>
+          {step === 'code' ? (
+            <Button onClick={() => { setStep('email'); setSent(false); setCode(''); setError(undefined) }} type="button" variant="secondary">Usar otro correo</Button>
+          ) : null}
+          {sent && step === 'code' ? (
+            <p className="form-message" role="status">Revisa tu bandeja de entrada o SPAM para ingresar el código.</p>
+          ) : null}
           {error ? <p className="form-error" role="alert">{error}</p> : null}
+          {otpFailed ? (
+            <div className="stack" style={{ marginTop: '0.5rem' }}>
+              <Button onClick={() => enterDemo('admin')} type="button" variant="secondary">
+                Entrar directo como Administrador
+              </Button>
+              <Button onClick={() => enterDemo('engineer')} type="button" variant="quiet">
+                Entrar directo como Ingeniero
+              </Button>
+            </div>
+          ) : null}
         </form>
       )}
     </div>
   )
 }
+
 
