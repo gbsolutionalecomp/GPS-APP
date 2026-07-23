@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     const records = await parseLocateliaFile(file)
     const directory = { vehicles: [...snapshot.vehicles] }
     const normalized = await new DefaultLocateliaAdapter().normalize(records, directory)
-    let inserted = normalized.journeys.length
+    let inserted = 0
     let updated = 0
     if (getDataMode() === 'supabase') {
       const supabase = await getSupabaseServerClient()
@@ -62,19 +62,35 @@ export async function POST(request: Request) {
       }
 
       if (normalized.journeys.length) {
-        const journeyRows = normalized.journeys.map((j) => ({
-          id: j.id,
-          external_id: j.externalId,
-          fingerprint: j.fingerprint,
-          source: j.source,
-          vehicle_id: j.vehicleId,
-          actual_start: j.actualStart,
-          actual_end: j.actualEnd,
-          origin: j.origin,
-          destination: j.destination,
-          gps_distance_km: j.gpsDistanceKm,
-          source_updated_at: j.sourceUpdatedAt,
-        }))
+        const { data: existingJourneys } = await supabase.from('journeys').select('id, external_id, fingerprint')
+        const existingMap = new Map<string, string>()
+        for (const ej of existingJourneys ?? []) {
+          if (ej.external_id) existingMap.set(ej.external_id, ej.id)
+          if (ej.fingerprint) existingMap.set(ej.fingerprint, ej.id)
+        }
+
+        const journeyRows = normalized.journeys.map((j) => {
+          const existingId = (j.externalId ? existingMap.get(j.externalId) : undefined) ?? (j.fingerprint ? existingMap.get(j.fingerprint) : undefined)
+          if (existingId) {
+            j.id = existingId
+            updated += 1
+          } else {
+            inserted += 1
+          }
+          return {
+            id: j.id,
+            external_id: j.externalId,
+            fingerprint: j.fingerprint,
+            source: j.source,
+            vehicle_id: j.vehicleId,
+            actual_start: j.actualStart,
+            actual_end: j.actualEnd,
+            origin: j.origin,
+            destination: j.destination,
+            gps_distance_km: j.gpsDistanceKm,
+            source_updated_at: j.sourceUpdatedAt,
+          }
+        })
         const { error: jErr } = await supabase.from('journeys').upsert(journeyRows, { onConflict: 'id' })
         if (jErr) throw jErr
       }
@@ -108,10 +124,13 @@ export async function POST(request: Request) {
       } catch (logErr) {
         console.warn('Import audit log warning:', logErr)
       }
+    } else {
+      inserted = normalized.journeys.length
     }
     return NextResponse.json({ fileName: file.name, acceptedRows: normalized.journeys.length, rejectedRows: normalized.errors.length, warnings: normalized.warnings, errors: normalized.errors.slice(0, 100), journeys: normalized.journeys, stops: normalized.stops, inserted, updated, committed: getDataMode() === 'supabase' })
   } catch (cause) {
     console.error('Import error:', cause)
-    return NextResponse.json({ error: cause instanceof Error ? cause.message : 'No fue posible importar el archivo.' }, { status: 422 })
+    const errorMsg = cause instanceof Error ? cause.message : (typeof cause === 'object' && cause && 'message' in cause ? String(cause.message) : 'No fue posible importar el archivo.')
+    return NextResponse.json({ error: errorMsg }, { status: 422 })
   }
 }
