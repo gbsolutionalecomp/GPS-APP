@@ -97,7 +97,7 @@ function parseHistoryWorkbook(sheet: ExcelJS.Worksheet, headerInfo: { rowNumber:
 
 function collapseHistoryRows(rows: readonly Record<string, unknown>[]): Record<string, unknown>[] {
   const journeys: Record<string, unknown>[] = []
-  let openStop: { startAt: string; origin: string } | null = null
+  let departureStop: { startAt: string; origin: string } | null = null
   let sequence = 1
   rows.forEach((row) => {
     const state = String(row.state ?? '').trim().toLowerCase()
@@ -105,30 +105,30 @@ function collapseHistoryRows(rows: readonly Record<string, unknown>[]): Record<s
     const timestamp = parseHistoryDate(String(row.date ?? ''), String(row.time ?? ''))
     if (!timestamp) return
 
-    // "Fin Parada" marca el inicio del movimiento (Hora de salida y Origen del viaje)
+    // "Fin Parada" = El carro termina la parada y comenzo a andar (Lugar de Origen y Hora de Salida)
     if (state === 'fin parada') {
-      openStop = { startAt: timestamp, origin: location || 'Origen sin nombre' }
+      departureStop = { startAt: timestamp, origin: location || 'Origen sin nombre' }
       return
     }
 
-    // "Inicio Parada" marca el fin del movimiento (Hora de llegada y Destino del viaje)
-    if (state === 'inicio parada' && openStop) {
+    // "Inicio Parada" = El carro se pauso y llego a la parada (Lugar de Destino y Hora de Llegada)
+    if (state === 'inicio parada' && departureStop) {
       const vehicle = String(row.vehicle ?? '').trim()
-      const destination = location || openStop.origin
-      const externalId = `${vehicle || 'locatelia'}-${openStop.startAt}-${timestamp}`
+      const destination = location || departureStop.origin
+      const externalId = `${vehicle || 'locatelia'}-${departureStop.startAt}-${timestamp}`
       journeys.push({
         externalId,
         plate: vehicle || undefined,
-        actualStart: openStop.startAt,
+        actualStart: departureStop.startAt,
         actualEnd: timestamp,
-        origin: openStop.origin,
+        origin: departureStop.origin,
         destination,
         distance: '',
-        stops: `${openStop.origin}|${openStop.startAt}|${timestamp};${destination}|${timestamp}|${timestamp}`,
+        stops: `${departureStop.origin}|${departureStop.startAt}|${timestamp};${destination}|${timestamp}|${timestamp}`,
         sequence,
       })
       sequence += 1
-      openStop = null
+      departureStop = null
     }
   })
   return journeys
