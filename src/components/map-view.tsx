@@ -53,7 +53,7 @@ export function MapView({ origin, destination, points = [], stops = [], classNam
             {stops.map((stop) => (
               <div key={stop.id} className="flex items-center justify-between rounded-lg bg-slate-800/60 p-2 text-xs border border-slate-700/50">
                 <span className="truncate text-slate-300 font-medium">{stop.location}</span>
-                <span className="ml-2 font-mono text-amber-400">{stop.durationMinutes} min</span>
+                <span className="ml-2 font-medium text-amber-400">{stop.durationMinutes} min</span>
               </div>
             ))}
           </div>
