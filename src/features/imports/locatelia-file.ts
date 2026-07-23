@@ -77,7 +77,9 @@ function parseHistoryWorkbook(sheet: ExcelJS.Worksheet, headerInfo: { rowNumber:
     const date = String(record[headers[0] ?? ''] ?? '').trim()
     const time = String(record[headers[1] ?? ''] ?? '').trim()
     const state = String(record[headers[2] ?? ''] ?? '').trim()
-    const location = [record[headers[4] ?? ''], record[headers[3] ?? '']].map((value) => String(value ?? '').trim()).filter(Boolean).join(' · ')
+    const zone = String(record[headers[4] ?? ''] ?? '').trim()
+    const population = String(record[headers[3] ?? ''] ?? '').trim()
+    const location = zone ? (population ? `${zone} · ${population}` : zone) : (population || 'Ubicación sin nombre')
     if (!date || !time || !state) return
     rows.push({
       date,
@@ -102,12 +104,17 @@ function collapseHistoryRows(rows: readonly Record<string, unknown>[]): Record<s
     const location = String(row.location ?? '').trim()
     const timestamp = parseHistoryDate(String(row.date ?? ''), String(row.time ?? ''))
     if (!timestamp) return
+
+    // "Fin Parada" marca el inicio del movimiento (Hora de salida y Origen del viaje)
     if (state === 'fin parada') {
       openStop = { startAt: timestamp, origin: location || 'Origen sin nombre' }
       return
     }
+
+    // "Inicio Parada" marca el fin del movimiento (Hora de llegada y Destino del viaje)
     if (state === 'inicio parada' && openStop) {
       const vehicle = String(row.vehicle ?? '').trim()
+      const destination = location || openStop.origin
       const externalId = `${vehicle || 'locatelia'}-${openStop.startAt}-${timestamp}`
       journeys.push({
         externalId,
@@ -115,9 +122,9 @@ function collapseHistoryRows(rows: readonly Record<string, unknown>[]): Record<s
         actualStart: openStop.startAt,
         actualEnd: timestamp,
         origin: openStop.origin,
-        destination: location || openStop.origin,
+        destination,
         distance: '',
-        stops: `${openStop.origin}|${openStop.startAt}|${timestamp};${location || openStop.origin}|${timestamp}|${timestamp}`,
+        stops: `${openStop.origin}|${openStop.startAt}|${timestamp};${destination}|${timestamp}|${timestamp}`,
         sequence,
       })
       sequence += 1
