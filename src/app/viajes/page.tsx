@@ -7,6 +7,7 @@ import { JourneyTable } from '@/components/journey-table'
 import { ScheduleJourneyForm } from '@/components/schedule-journey-form'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { Icon } from '@/components/ui/icon'
 import { PageHeader } from '@/components/ui/page-header'
 import { getJourneyState } from '@/domain/journeys'
@@ -18,35 +19,41 @@ export default function JourneysPage() {
   const [view, setView] = useState<'journeys' | 'segments'>('journeys')
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('all')
-  const [selectedMonth, setSelectedMonth] = useState<string>('all')
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null)
   const [selectedWeek, setSelectedWeek] = useState<string>('all')
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('asc')
   const [scheduling, setScheduling] = useState(search.get('programar') === '1')
 
-  // Obtener lista de meses únicos ordenados recíprocamente
+  // Obtener lista de meses únicos ordenados recíprocamente con conteo de cargas semanales
   const availableMonths = useMemo(() => {
-    const monthMap = new Map<string, { key: string; label: string; count: number }>()
+    const monthMap = new Map<string, { key: string; label: string; count: number; weeks: Set<number> }>()
     snapshot.journeys.forEach((journey) => {
       const dateStr = journey.actualStart ?? journey.plannedStart
       const { key, label } = getMonthKeyAndLabel(dateStr)
+      const wNum = getISOWeekNumber(dateStr)
       const existing = monthMap.get(key)
       if (existing) {
         existing.count += 1
+        if (wNum > 0) existing.weeks.add(wNum)
       } else {
-        monthMap.set(key, { key, label, count: 1 })
+        const weeks = new Set<number>()
+        if (wNum > 0) weeks.add(wNum)
+        monthMap.set(key, { key, label, count: 1, weeks })
       }
     })
-    const list = Array.from(monthMap.values()).sort((a, b) => b.key.localeCompare(a.key))
-    return [{ key: 'all', label: 'Todos los periodos', count: snapshot.journeys.length }, ...list]
+    return Array.from(monthMap.values())
+      .sort((a, b) => b.key.localeCompare(a.key))
+      .map((item) => ({ key: item.key, label: item.label, count: item.count, weekCount: item.weeks.size }))
   }, [snapshot.journeys])
 
   // Obtener semanas disponibles dentro del mes seleccionado
   const availableWeeks = useMemo(() => {
+    if (!selectedMonth) return []
     const weekSet = new Set<number>()
     snapshot.journeys.forEach((journey) => {
       const dateStr = journey.actualStart ?? journey.plannedStart
       const { key } = getMonthKeyAndLabel(dateStr)
-      if (selectedMonth === 'all' || key === selectedMonth) {
+      if (key === selectedMonth) {
         const wNum = getISOWeekNumber(dateStr)
         if (wNum > 0) weekSet.add(wNum)
       }
@@ -54,15 +61,16 @@ export default function JourneysPage() {
     return Array.from(weekSet).sort((a, b) => a - b)
   }, [snapshot.journeys, selectedMonth])
 
-  // Filtrado final de viajes
+  // Filtrado final de viajes para el mes seleccionado
   const journeys = useMemo(() => {
+    if (!selectedMonth) return []
     const filtered = snapshot.journeys.filter((journey) => {
       const dateStr = journey.actualStart ?? journey.plannedStart
       const { key: mKey } = getMonthKeyAndLabel(dateStr)
       const wNum = getISOWeekNumber(dateStr)
 
       // Filtro por Mes
-      if (selectedMonth !== 'all' && mKey !== selectedMonth) return false
+      if (mKey !== selectedMonth) return false
 
       // Filtro por Semana
       if (selectedWeek !== 'all' && String(wNum) !== selectedWeek) return false
@@ -90,7 +98,7 @@ export default function JourneysPage() {
 
   // Etiqueta del mes activo seleccionado
   const activeMonthLabel = useMemo(() => {
-    if (selectedMonth === 'all') return 'Todos los periodos'
+    if (!selectedMonth) return ''
     return availableMonths.find((m) => m.key === selectedMonth)?.label ?? selectedMonth
   }, [availableMonths, selectedMonth])
 
@@ -103,8 +111,8 @@ export default function JourneysPage() {
             {scheduling ? 'Cerrar' : 'Programar viaje'}
           </Button>
         }
-        description="Consulta cada recorrido clasificado por meses y semanas de carga estilo estado de cuenta bancario."
-        eyebrow="Bitácora GPS por Periodo"
+        description="Estados de cuenta mensuales de recorridos GPS subidos por administración."
+        eyebrow="Bitácora GPS"
         title="Viajes"
       />
 
@@ -114,110 +122,128 @@ export default function JourneysPage() {
         </Card>
       ) : null}
 
-      {/* CLASIFICACIÓN POR MES - ESTILO ESTADO DE CUENTA BANCARIO */}
-      <div className="card" style={{ marginBottom: '14px', padding: '14px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
-          <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Icon name="calendar" size={14} /> Seleccionar periodo mensual (Estado de cuenta)
-          </span>
-          <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>
-            {journeys.length} recorridos en {activeMonthLabel}
-          </span>
-        </div>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {availableMonths.map((month) => {
-            const isSelected = selectedMonth === month.key
-            return (
-              <button
+      {/* VISTA 1: CATÁLOGO DE MESES (NO MUESTRA LA TABLA HASTA TOCAR UN MES) */}
+      {!selectedMonth ? (
+        <div className="stack">
+          <div className="notice">
+            <div>
+              <strong>Selecciona un mes (Estado de cuenta)</strong>
+              <span>Toca un periodo mensual para abrir su bitácora detallada de recorridos y cargas semanales.</span>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gap: '16px', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', marginTop: '8px' }}>
+            {availableMonths.map((month) => (
+              <div
                 key={month.key}
-                type="button"
-                onClick={() => { setSelectedMonth(month.key); setSelectedWeek('all') }}
+                className="card"
+                onClick={() => setSelectedMonth(month.key)}
                 style={{
-                  background: isSelected ? '#18181b' : 'var(--surface-subtle)',
-                  color: isSelected ? '#ffffff' : 'var(--text)',
-                  border: '1px solid ' + (isSelected ? '#18181b' : 'var(--border)'),
-                  borderRadius: '6px',
-                  padding: '8px 14px',
+                  padding: '20px',
                   cursor: 'pointer',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
                   transition: 'all 0.15s ease',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
                 }}
               >
-                <span>{month.label}</span>
-                <span
-                  style={{
-                    background: isSelected ? 'rgba(255,255,255,0.2)' : 'var(--border)',
-                    color: isSelected ? '#ffffff' : 'var(--text-secondary)',
-                    borderRadius: '10px',
-                    padding: '1px 7px',
-                    fontSize: '10px',
-                  }}
-                >
-                  {month.count}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* BARRA DE FILTROS SECTORIALES */}
-      <div className="filter-bar">
-        <label className="search-field">
-          <Icon name="trip" size={15} />
-          <input aria-label="Buscar viajes" onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por lugar (ej. Cerritos, Secovi, Manuel Casa)…" value={query} />
-        </label>
-
-        {/* Filtro por Semana de Carga */}
-        <label className="field">
-          <select aria-label="Filtrar por semana" onChange={(event) => setSelectedWeek(event.target.value)} value={selectedWeek}>
-            <option value="all">Todas las semanas</option>
-            {availableWeeks.map((wNum) => (
-              <option key={wNum} value={String(wNum)}>
-                Semana {wNum}
-              </option>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                    <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)' }}>
+                      📅 {month.label}
+                    </span>
+                    <Badge tone="info">{month.count} viajes</Badge>
+                  </div>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '12px', margin: '0 0 16px', lineHeight: 1.4 }}>
+                    Bitácora mensual con <strong>{month.weekCount} cargas semanales</strong> registradas por administración.
+                  </p>
+                </div>
+                <Button type="button" variant="primary" style={{ width: '100%' }}>
+                  Abrir reporte de {month.label} →
+                </Button>
+              </div>
             ))}
-          </select>
-        </label>
 
-        <label className="field">
-          <select aria-label="Filtrar por estado" onChange={(event) => setStatus(event.target.value)} value={status}>
-            <option value="all">Todos los estados</option>
-            <option value="active">Activos</option>
-            <option value="unassigned">Sin asignar</option>
-            <option value="pending_evidence">Evidencia pendiente</option>
-            <option value="complete">Completos</option>
-          </select>
-        </label>
-
-        <label className="field">
-          <select aria-label="Orden cronológico" onChange={(event) => setSortOrder(event.target.value as 'asc' | 'desc')} value={sortOrder}>
-            <option value="asc">Más antiguos primero (01 Jul → ...)</option>
-            <option value="desc">Más recientes primero (... → 21 Jul)</option>
-          </select>
-        </label>
-
-        <div aria-label="Nivel de detalle" className="segmented">
-          <button aria-pressed={view === 'journeys'} onClick={() => setView('journeys')} type="button">
-            Recorridos
-          </button>
-          <button aria-pressed={view === 'segments'} onClick={() => setView('segments')} type="button">
-            Tramos
-          </button>
+            {!availableMonths.length ? (
+              <div className="empty-state">
+                <Icon name="trip" size={28} />
+                <strong>No hay periodos mensuales registrados</strong>
+                <p>Sube archivos semanales desde la sección Subir Recorridos.</p>
+              </div>
+            ) : null}
+          </div>
         </div>
-      </div>
+      ) : (
+        /* VISTA 2: REPORTE ABIERTO DEL MES SELECCIONADO */
+        <div className="stack">
+          {/* BARRA DE NAVEGACIÓN DEL MES ABIERTO */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', background: 'var(--surface)', padding: '12px 16px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)' }}>
+            <Button onClick={() => { setSelectedMonth(null); setSelectedWeek('all'); setQuery(''); }} type="button" variant="secondary">
+              ← Volver a Selección de Periodos
+            </Button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700 }}>
+                Periodo activo: <span style={{ textDecoration: 'underline' }}>{activeMonthLabel}</span>
+              </span>
+              <Badge tone="success">{journeys.length} recorridos</Badge>
+            </div>
+          </div>
 
-      <Card
-        className="card--flush"
-        subtitle={`${journeys.length} registros en ${activeMonthLabel} ${selectedWeek !== 'all' ? `(Semana ${selectedWeek})` : ''}`}
-        title={view === 'journeys' ? `Recorridos completos — ${activeMonthLabel}` : `Tramos entre paradas — ${activeMonthLabel}`}
-      >
-        <JourneyTable journeys={journeys} snapshot={snapshot} view={view} />
-      </Card>
+          {/* BARRA DE FILTROS DEL MES */}
+          <div className="filter-bar">
+            <label className="search-field">
+              <Icon name="trip" size={15} />
+              <input aria-label="Buscar viajes" onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por lugar (ej. Cerritos, Secovi, Manuel Casa)…" value={query} />
+            </label>
+
+            {/* Filtro por Semana de Carga */}
+            <label className="field">
+              <select aria-label="Filtrar por semana" onChange={(event) => setSelectedWeek(event.target.value)} value={selectedWeek}>
+                <option value="all">Todas las semanas del mes</option>
+                {availableWeeks.map((wNum) => (
+                  <option key={wNum} value={String(wNum)}>
+                    Semana {wNum}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="field">
+              <select aria-label="Filtrar por estado" onChange={(event) => setStatus(event.target.value)} value={status}>
+                <option value="all">Todos los estados</option>
+                <option value="active">Activos</option>
+                <option value="unassigned">Sin asignar</option>
+                <option value="pending_evidence">Evidencia pendiente</option>
+                <option value="complete">Completos</option>
+              </select>
+            </label>
+
+            <label className="field">
+              <select aria-label="Orden cronológico" onChange={(event) => setSortOrder(event.target.value as 'asc' | 'desc')} value={sortOrder}>
+                <option value="asc">Más antiguos primero (01 Jul → ...)</option>
+                <option value="desc">Más recientes primero (... → 21 Jul)</option>
+              </select>
+            </label>
+
+            <div aria-label="Nivel de detalle" className="segmented">
+              <button aria-pressed={view === 'journeys'} onClick={() => setView('journeys')} type="button">
+                Recorridos
+              </button>
+              <button aria-pressed={view === 'segments'} onClick={() => setView('segments')} type="button">
+                Tramos
+              </button>
+            </div>
+          </div>
+
+          <Card
+            className="card--flush"
+            subtitle={`${journeys.length} registros en ${activeMonthLabel} ${selectedWeek !== 'all' ? `(Semana ${selectedWeek})` : ''}`}
+            title={view === 'journeys' ? `Recorridos completos — ${activeMonthLabel}` : `Tramos entre paradas — ${activeMonthLabel}`}
+          >
+            <JourneyTable journeys={journeys} snapshot={snapshot} view={view} />
+          </Card>
+        </div>
+      )}
     </>
   )
 }
